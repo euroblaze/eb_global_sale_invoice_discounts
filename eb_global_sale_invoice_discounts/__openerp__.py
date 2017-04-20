@@ -22,10 +22,10 @@
 {
     'name': 'Global Sale Order Invoice Discount',
     'description': 'Manage Discount on Sale Order  and Invoice ',
-    'summary': '',
+    'summary': 'Manage Discount on Sale Order  and Invoice',
+    'images': ['static/description/banner.jpg'],
     'category': 'Accounting & Sales ',
     'version': '10.0.1.0',
-    'images' : ['static/description/banner.jpg'].
     'website': 'www.euroblaze.de',
     'author': 'odoo@euroblaze.de',
     'depends': ['base', 'account', 'account_accountant', 'sale'],
