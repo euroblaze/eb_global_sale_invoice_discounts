@@ -20,8 +20,8 @@
 #
 ##############################################################################
 from __future__ import division
-from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from openerp import api, fields, models, _
+from openerp.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 from openerp.tools import amount_to_text_en
