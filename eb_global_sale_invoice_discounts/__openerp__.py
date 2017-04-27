@@ -27,7 +27,7 @@
     'category': 'Accounting & Sales ',
     'version': '10.0.1.0',
     'website': 'www.euroblaze.de',
-    'author': 'odoo@euroblaze.de',
+    'author': 'odoo@simplify-erp.com',
     'depends': ['base', 'account', 'account_accountant', 'sale'],
     'data': [
         'views/views.xml',
