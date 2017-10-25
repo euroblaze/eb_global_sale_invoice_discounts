@@ -23,15 +23,15 @@ from __future__ import division
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 import logging
+
 _logger = logging.getLogger(__name__)
 from openerp.tools import amount_to_text_en
-
 
 
 class saleorder_discount(models.Model):
     _inherit = 'sale.order'
     discount_view = fields.Selection([('After Tax', 'After Tax')], string='Discount Type')
-    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method')                                     
+    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method')
     discount_value = fields.Float(string='Discount Value', store=True)
     discounted_amount = fields.Float(compute='disc_amount', string='Discounted Amount', store=True, readonly=True)
 
@@ -41,7 +41,7 @@ class saleorder_discount(models.Model):
         Compute the total amounts of the SO.
         """
         for order in self:
-            amount_untaxed = amount_tax  = amount_total = 0.0
+            amount_untaxed = amount_tax = amount_total = 0.0
             for line in order.order_line:
                 amount_untaxed += line.price_subtotal
                 amount_tax += line.price_tax
@@ -52,7 +52,7 @@ class saleorder_discount(models.Model):
                 elif order.discount_type == 'Percentage':
                     if order.discount_value < 100:
                         amount_to_dis = (amount_untaxed + amount_tax) * (order.discount_value / 100)
-                        amount_total = (amount_untaxed+ amount_tax) - amount_to_dis
+                        amount_total = (amount_untaxed + amount_tax) - amount_to_dis
                     else:
                         raise UserError(_('Discount percentage should not be greater than 100.'))
                 else:
@@ -65,7 +65,7 @@ class saleorder_discount(models.Model):
                 'amount_tax': order.pricelist_id.currency_id.round(amount_tax),
                 'amount_total': amount_total,
             })
-	
+
     @api.one
     @api.depends('order_line.price_subtotal', 'discount_type', 'discount_value')
     def disc_amount(self):
@@ -82,8 +82,6 @@ class saleorder_discount(models.Model):
                 self.discounted_amount = 0
         else:
             self.discounted_amount = 0
-
-
 
     @api.multi
     def _prepare_invoice(self):
@@ -111,26 +109,26 @@ class saleorder_discount(models.Model):
             'company_id': self.company_id.id,
             'user_id': self.user_id and self.user_id.id,
             'team_id': self.team_id.id,
-            'discount_view' : self.discount_view,
-            'discount_type' : self.discount_type,
-            'discount_value':self.discount_value,
-            'discounted_amount' : self.discounted_amount,
+            'discount_view': self.discount_view,
+            'discount_type': self.discount_type,
+            'discount_value': self.discount_value,
+            'discounted_amount': self.discounted_amount,
         }
         return invoice_vals
-	
-	
+
+
 class invoice_discount(models.Model):
     _inherit = 'account.invoice'
-    discount_view = fields.Selection([('After Tax', 'After Tax')], string='Discount Type',help='choose wether to nclude tax on discount')
-    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method',help='Choose the type of the Discount')
+    discount_view = fields.Selection([('After Tax', 'After Tax')], string='Discount Type',
+                                     help='choose wether to nclude tax on discount')
+    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method',
+                                     help='Choose the type of the Discount')
     discount_value = fields.Float(string='Discount Value', help='Choose the value of the Discount')
     discounted_amount = fields.Float(compute='disc_amount', string='Discounted Amount', readonly=True)
-    
 
-    
-       
     @api.one
-    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice', 'discount_type', 'discount_value')
+    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice',
+                 'discount_type', 'discount_value')
     def _compute_amount(self):
         self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)
         self.amount_tax = sum(line.amount for line in self.tax_line_ids)
@@ -145,9 +143,9 @@ class invoice_discount(models.Model):
                     raise UserError(_('Discount percentage should not be greater than 100.'))
             else:
                 self.amount_total = self.amount_untaxed + self.amount_tax
-        
+
         else:
-            self.amount_total = self.amount_untaxed + self.amount_tax        
+            self.amount_total = self.amount_untaxed + self.amount_tax
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.currency_id != self.company_id.currency_id:
@@ -160,7 +158,8 @@ class invoice_discount(models.Model):
         self.amount_untaxed_signed = amount_untaxed_signed * sign
 
     @api.one
-    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice', 'discount_type', 'discount_value')
+    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice',
+                 'discount_type', 'discount_value')
     def disc_amount(self):
         if self.discount_view == 'After Tax':
             if self.discount_type == 'Fixed':
@@ -170,8 +169,6 @@ class invoice_discount(models.Model):
                 self.discounted_amount = amount_to_dis
             else:
                 self.discounted_amount = 0
-        
+
         else:
             self.discounted_amount = 0
-
-
