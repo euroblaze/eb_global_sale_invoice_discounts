@@ -30,12 +30,12 @@ from openerp.tools import amount_to_text_en
 
 class saleorder_discount(models.Model):
     _inherit = 'sale.order'
-    discount_view = fields.Selection([('After Tax', 'After Tax')], string='Discount Type')
-    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method')
+    discount_view = fields.Selection([('After Tax', 'After Tax'),('Before Tax', 'Before Tax')], string='Discount Type',store=True)
+    discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method',store=True)
     discount_value = fields.Float(string='Discount Value', store=True)
     discounted_amount = fields.Float(compute='disc_amount', string='Discounted Amount', store=True, readonly=True)
 
-    @api.depends('order_line.price_subtotal', 'discount_type', 'discount_value')
+    @api.depends('order_line.price_subtotal', 'discount_type', 'discount_value','discount_view')
     def _amount_all(self):
         """
         Compute the total amounts of the SO.
@@ -57,6 +57,17 @@ class saleorder_discount(models.Model):
                         raise UserError(_('Discount percentage should not be greater than 100.'))
                 else:
                     amount_total = amount_untaxed + amount_tax
+            elif order.discount_view == 'Before Tax':
+                if order.discount_type == 'Fixed':
+                    amount_total = amount_untaxed + amount_tax - order.discount_value
+                elif order.discount_type == 'Percentage':
+                    if order.discount_value < 100:
+                        amount_to_dis = (amount_untaxed) * (order.discount_value / 100)
+                        amount_total = (amount_untaxed - amount_to_dis)+ amount_tax
+                    else:
+                        raise UserError(_('Discount percentage should not be greater than 100.'))
+                else:
+                    amount_total = amount_untaxed + amount_tax
             else:
                 amount_total = amount_untaxed + amount_tax
 
@@ -67,7 +78,7 @@ class saleorder_discount(models.Model):
             })
 
     @api.one
-    @api.depends('order_line.price_subtotal', 'discount_type', 'discount_value')
+    @api.depends('order_line.price_subtotal', 'discount_type', 'discount_value','discount_view')
     def disc_amount(self):
         val = 0
         for line in self.order_line:
@@ -77,6 +88,14 @@ class saleorder_discount(models.Model):
                 self.discounted_amount = self.discount_value
             elif self.discount_type == 'Percentage':
                 amount_to_dis = (self.amount_untaxed + val) * (self.discount_value / 100)
+                self.discounted_amount = amount_to_dis
+            else:
+                self.discounted_amount = 0
+        elif self.discount_view == 'Before Tax':
+            if self.discount_type == 'Fixed':
+                self.discounted_amount = self.discount_value
+            elif self.discount_type == 'Percentage':
+                amount_to_dis = (self.amount_untaxed) * (self.discount_value / 100)
                 self.discounted_amount = amount_to_dis
             else:
                 self.discounted_amount = 0
@@ -119,16 +138,16 @@ class saleorder_discount(models.Model):
 
 class invoice_discount(models.Model):
     _inherit = 'account.invoice'
-    discount_view = fields.Selection([('After Tax', 'After Tax')], string='Discount Type',
-                                     help='choose wether to nclude tax on discount')
+    discount_view = fields.Selection([('After Tax', 'After Tax'),('Before Tax', 'Before Tax')], string='Discount Type',
+                                     help='choose wether to nclude tax on discount',store=True)
     discount_type = fields.Selection([('Fixed', 'Fixed'), ('Percentage', 'Percentage')], string='Discount Method',
-                                     help='Choose the type of the Discount')
+                                     help='Choose the type of the Discount',store=True)
     discount_value = fields.Float(string='Discount Value', help='Choose the value of the Discount')
     discounted_amount = fields.Float(compute='disc_amount', string='Discounted Amount', readonly=True)
 
     @api.one
     @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice',
-                 'discount_type', 'discount_value')
+                 'discount_type', 'discount_value', 'discount_view')
     def _compute_amount(self):
         self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)
         self.amount_tax = sum(line.amount for line in self.tax_line_ids)
@@ -144,8 +163,20 @@ class invoice_discount(models.Model):
             else:
                 self.amount_total = self.amount_untaxed + self.amount_tax
 
+        elif self.discount_view == 'Before Tax':
+            if self.discount_type == 'Fixed':
+                self.amount_total = self.amount_untaxed + self.amount_tax - self.discount_value
+            elif self.discount_type == 'Percentage':
+                if self.discount_value < 100:
+                    amount_to_dis = (self.amount_untaxed) * (self.discount_value / 100)
+                    self.amount_total = (self.amount_untaxed - amount_to_dis)+ self.amount_tax
+                else:
+                    raise UserError(_('Discount percentage should not be greater than 100.'))
+            else:
+                self.amount_total = self.amount_untaxed + self.amount_tax
         else:
             self.amount_total = self.amount_untaxed + self.amount_tax
+
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.currency_id != self.company_id.currency_id:
@@ -159,7 +190,7 @@ class invoice_discount(models.Model):
 
     @api.one
     @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice',
-                 'discount_type', 'discount_value')
+                 'discount_type', 'discount_value','discount_view')
     def disc_amount(self):
         if self.discount_view == 'After Tax':
             if self.discount_type == 'Fixed':
@@ -169,6 +200,13 @@ class invoice_discount(models.Model):
                 self.discounted_amount = amount_to_dis
             else:
                 self.discounted_amount = 0
-
+        elif  self.discount_view == 'Before Tax':
+            if self.discount_type == 'Fixed':
+                self.discounted_amount = self.discount_value
+            elif self.discount_type == 'Percentage':
+                amount_to_dis = (self.amount_untaxed) * (self.discount_value / 100)
+                self.discounted_amount = amount_to_dis
+            else:
+                self.discounted_amount = 0
         else:
             self.discounted_amount = 0
